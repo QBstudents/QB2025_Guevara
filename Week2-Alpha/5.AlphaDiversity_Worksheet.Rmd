@@ -1,6 +1,5 @@
 ---
 title: '5\. Worksheet: Alpha Diversity_Bryan Guevara'
-title: '5\. Worksheet: Alpha Diversity'
 author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
@@ -782,7 +781,7 @@ Any other interesting observations based on what you learned this week?
 Synthdata <- read.csv("MAT_fungal_abundances.csv")
 Synthdata_reform <- Synthdata[,c(1,5)]
 Synthdata_reform
-unique_plots <- data.frame(Plot = unique(data$Plot))
+unique_plots <- data.frame(Plot = unique(Synthdata_reform$Plot))
 unique_plots
 unique_species <- data.frame(Species = unique(Synthdata_reform$Species))
 unique_species
