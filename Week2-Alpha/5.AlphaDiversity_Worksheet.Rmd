@@ -1,5 +1,6 @@
 ---
 title: '5\. Worksheet: Alpha Diversity_Bryan Guevara'
+title: '5\. Worksheet: Alpha Diversity'
 author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
@@ -35,11 +36,17 @@ In the R code chunk below, please provide the code to:
 4) Load the `vegan` R package (be sure to install first if you have not already).
 
 ```{r}
+
 rm(list = ls())
 getwd()
 setwd("/cloud/project/QB2025_Guevara/Week2-Alpha")
 install.packages("vegan")
 library(vegan)
+
+
+
+
+ 
 
 ```
 
@@ -50,9 +57,14 @@ In the R code chunk below, do the following:
 2) Display the structure of the dataset (if the structure is long, use the `max.level = 0` argument to show the basic information).
 
 ```{r}
+
 data(BCI)
 str(BCI, max.level = 0)
 site1 <- BCI[1, ]
+
+
+
+ 
 ```
 
 ## 3) SPECIES RICHNESS
@@ -71,19 +83,30 @@ In the R code chunk below, do the following:
 
 ```{r}
 
+
 S.obs <- function(x = ""){
 rowSums(x > 0) * 1
 }
 S.obs(BCI)
 specnumber(BCI)
 help(specnumber)
+
+# S.obs <- function(   ){
+#   rowSums(     ) * 
+#   }
+
+ 
 ```
 
 ***Question 1***: Does `specnumber()` from `vegan` return the same value for observed richness in `site1` as our function `S.obs`?
 What is the species richness of the first four sites (i.e., rows) of the BCI matrix?
 
 > ***Answer 1***:
+
 >Yes, it does appear that observed richness in site1 from specnumber matches the observed richness we acquire from our function 'S.obs'. The species richness from the first four sites are 93, 84, 90, and 94. 
+
+>
+ 
 
 
 ### Coverage: How well did you sample your site?
@@ -96,8 +119,11 @@ In the R code chunk below, do the following:
 
 ```{r}
 
+
 C <- function(x = ""){1 - (rowSums(x == 1)/rowSums(x))}
 C(BCI)
+
+ 
 
 ```
   
@@ -109,6 +135,7 @@ c.  What portion of taxa in `site1` was represented by singletons?
 d.  Make some observations about coverage at the BCI plots.
 
 > ***Answer 2a***:
+
 >The range of values that can be generated is any number between 0 and 1 as Good's Coverage is a proportion as we take the ratio of singleton species to total number of individuals in our sample and subtract this value from 1. 
 
 > ***Answer 2b***:
@@ -119,6 +146,18 @@ d.  Make some observations about coverage at the BCI plots.
 
 > ***Answer 2d***: 
 >Site 23 has the greatest portion of taxa represented by singletons across all the observed sites while site 4 seems to have the lowest. Most sites have ~10% of their taxa represented by singletons. 
+
+>
+
+> ***Answer 2b***:
+>
+
+> ***Answer 2c***: 
+>
+
+> ***Answer 2d***: 
+>
+ 
 
 
 ### Estimated richness
@@ -137,6 +176,7 @@ In the R code chunk below, do the following:
 
 ```{r}
 
+
 soilbac <- read.table("data/soilbac.txt", sep = "\t", header = TRUE, row.names = 1)
 soilbac.t <- as.data.frame(t(soilbac))
 soilbac1 <- soilbac.t[1,]
@@ -146,6 +186,13 @@ S.obs(soilbac1)
 #Good's Coverage of site T1_1
 C(soilbac1)
 dim(soilbac1)
+
+
+
+
+
+
+ 
 ```
 
 ***Question 3***: Answer the following questions about the soil bacterial dataset. 
@@ -155,6 +202,7 @@ b.  What is the observed richness of `soilbac1`?
 c.  How does coverage compare between the BCI sample (`site1`) and the KBS sample (`soilbac1`)?
 
 > ***Answer 3a***:
+
 > There were a total of 2119 sequences recovered from our soilbac1 sample. 
 
 > ***Answer 3b***: 
@@ -162,6 +210,15 @@ c.  How does coverage compare between the BCI sample (`site1`) and the KBS sampl
 
 > ***Answer 3c***: 
 > The coverage betwen the BCI sample and the KBS sample are very different with the KBS sample having a much smaller overall coverage 
+
+>
+
+> ***Answer 3b***: 
+>
+
+> ***Answer 3c***: 
+>
+ 
 
 
 ### Richness estimators
@@ -177,6 +234,7 @@ In the R code chunk below, do the following:
 4. Use these functions to estimate richness at `site1` and `soilbac1`. 
 
 ```{r}
+
 S.chao1 <- function(x = ""){S.obs(x) +(sum(x == 1)^2) / (2 * sum(x ==2))}
 S.chao2 <- function(site ="", SbyS = ""){
   SbyS = as.data.frame(SbyS)
@@ -218,6 +276,11 @@ S.ace(site1)
 
 
 
+ 
+
+
+
+
 
 ```
 
@@ -227,8 +290,13 @@ Do the estimators give consistent results?
 Which one would you choose to use and why?
 
 > ***Answer 4***:
+
 >The difference between ACE and Chao estimators is that ACE uses a threshold to looik at abundance of rare species and defines rare species as taxa that have 10 or fewer individuals. The estimators do not give the most consisten results as they each use different parameters in order to estimate richness (Chao1 makes inferences based on number of singletons and doubletons of species at one site ; Chao2 uses the presence/absence of species across multipel sites; ACE uses a threshold to identifyu abundance of rare species). 
 >For our soilbac1 dataset, I would probably avoid ACE because it might underrestimate richness because it assumes a sufficient enough sampling coverage and soilbac1 seems to have rather poor coverage as indicated by the Good's Coverage value meaning that there are a lot rare species. Thus, for soilbac1, I would probably use Chao2 as it considers the presence of species across multiple sites rather than focusing on a singular site as that would be more representative of how rich a species might be in a given ecosystem. I would prefer a holistic POV rather than a the richness of a single site within an ecosystem. For site1 from site1, the coverage is a lot better so I could consider using ACE in this case as there are relatively fewer rarer species in this site compared to soilbac1. 
+
+>
+
+ 
 
 ### Rarefaction
 
@@ -253,8 +321,6 @@ S.rarefy <- rarefy(x = soilbac.t, sample = min.N, se = TRUE)
 rarecurve(x = soilbac.t, step = 20, col = "blue", cex = 0.6, las = 1)
 abline(0,1, col = 'red')
 text(1500,1500, "1:1", pos = 2, col = 'red')
-
-
 
 
 ```
@@ -319,15 +385,16 @@ axis(side = 2, las = 1, cex.axis = 1.25,
 par <- opar
 
 
-
-
-
 ```
 
 ***Question 5***: What effect does visualizing species abundance data on a log-scaled axis have on how we interpret evenness in the RAC?
 
 > ***Answer 5***:
+
 >From what we can see on the graph, when we log scale things, a community that might have high dominance of a few species might look less steep (like around rank 20) which can give the impression of greater evenness when there is in fact less evenness because there are some rather abundant species even though they might not be as abundant as the species ranking from 1-10. In  a community with relatively strong evenness, log scaling could hide some minor variations in actual evenness, skewing how we might interpret evenness using our RAC. 
+
+
+ 
 
 Now that we have visualized unevennes, it is time to quantify it using Simpson's evenness ($E_{1/D}$) and Smith and Wilson's evenness index ($E_{var}$).
 
@@ -354,6 +421,7 @@ SimpE(site1)
 
 
 
+
 ```
 
 ### Smith and Wilson's evenness index ($E_{var}$)
@@ -368,12 +436,16 @@ In the R code chunk below, please do the following:
 
 ```{r}
 
+
 Evar <- function(x){
   x <- as.vector(x[x > 0])
   1 - (2/pi) * atan(var(log(x)))
 }
 
 Evar(site1)
+
+
+ 
 
 
 
@@ -384,7 +456,11 @@ Evar(site1)
 Do they agree? If so, why? If not, why? What can you infer from the results.
 
 > ***Answer 6***:
+
 >The estimates for evenness for site1 do not necessarily agree with Simpson's estimate of evenness is slightly smaller than Smith and Wilson's. They do not agree entirely because Simpson's is more sensitive to differences in the few most abundant species within the measured community. Smith and Wilson's uses the sample variance of the log-transformed abundances and then standardizes it resulting in a different value from Simpson's. From both of the results, I can infer that the evenness at site1 really isn't all that great as the estimates are ~0.5 or lower. I would categorize them as moderately even with 1 being the most even and values of 0 being associated with low evenness. 
+
+
+ 
 
 ## 5) INTEGRATING RICHNESS AND EVENNESS: DIVERSITY METRICS
 
@@ -402,6 +478,7 @@ In the R code chunk below, please do the following:
 
 ```{r}
 
+
 ShanH <- function(x = ""){
   H = 0 
 for (n_i in x){
@@ -414,6 +491,10 @@ return(H)
 }
 
 diversity(site1, index = "shannon")
+
+
+
+ 
 
 
 
@@ -434,6 +515,7 @@ In the R code chunk below, please do the following:
 
 ```{r}
 
+
 SimpD <- function(x = ""){
   D = 0 
   N = sum(x)
@@ -448,6 +530,19 @@ D.sub <- 1-SimpD(site1)
 diversity(site1, "inv")
 diversity(site1, "simp")
 
+
+
+
+
+
+
+
+
+
+
+
+ 
+
 ```
 
 ### Fisher's $\boldsymbol\alpha$
@@ -460,12 +555,26 @@ In the R code chunk below, please do the following:
 
 ```{r}
 
+
 rac <- as.vector(site1[site1 > 0])
 invD <- diversity(rac, "inv")
 invD
 
 Fisher <- fisher.alpha(rac)
 Fisher
+
+
+
+
+
+
+
+
+
+
+
+
+ 
 
 ```
 
@@ -474,12 +583,16 @@ How is Fisher's $\boldsymbol\alpha$ different from $E_{H'}$ and $E_{var}$?
 What does Fisher's $\boldsymbol\alpha$ take into account that $E_{H'}$ and $E_{var}$ do not?
 
 > ***Answer 7***:
+
 >Fisher's alpha estimates diversity rather just calculating a diversity metric directly acounting for sampling error. We are not observing every single individual as we would for Smith and Wilson's Evenness Index or for Shannon's diversity. 
+
+ 
 
 ## 6) HILL NUMBERS 
 
 Remember that we have learned about the advantages of Hill Numbers to measure and compare diversity among samples. 
 We also learned to explore the effects of rare species in a community by examining diversity for a series of exponents $q$. 
+
 
 ```{r}
 #Simulate communities 
@@ -556,6 +669,14 @@ plot(site1_profile[,1], site1_profile[,2], ylim=c(0,300), cex = 2,
 > ***Answer 8b***:
 > There are many rare species in our community based on our species richness (q = 0) but once we start considering abundance using our Shannon's and Simpson's diversity metrics, their impact on diversity becomes relatively small. 
 
+***Question 8***: Using `site1` of BCI and `vegan` package, a) calculate Hill numbers for $q$ exponent 0, 1 and 2 (richness, exponential Shannon's entropy, and inverse Simpson's diversity). b) Interpret the effect of rare species in your community based on the response of diversity to increasing exponent $q$. 
+
+> ***Answer 8a***:
+>
+> ***Answer 8b***:
+>
+ 
+
 ##7) MOVING BEYOND UNIVARIATE METRICS OF $\alpha$ DIVERSITY
 
 The diversity metrics that we just learned about attempt to integrate richness and evenness into a single, univariate metric.
@@ -580,9 +701,14 @@ In the R code chunk below, please do the following:
 ```{r}
 
 
+
 RACresults <- radfit(site1)
 plot.new()
 plot(RACresults, las = 1, cex.lab = 1.4, cex.axis = 1.25)
+
+
+
+
 
 ```
 
@@ -592,6 +718,7 @@ a) Based on the output of `radfit()` and plotting above, discuss which model bes
 b) Can we make any inferences about the forces, processes, and/or mechanisms influencing the structure of our system, e.g., an ecological community?
 
 > ***Answer 9a***: 
+
 > It seems that the Mandelbrot model best fits our RAc 
 > ***Answer 9b***:
 > Because the RAC best fits the Mandelbrot model, we can infer that there is some sort of niche partitioning or structuring going on as the Mandelbrot model suggests some sort of self-organizing structure amongst species. 
@@ -602,15 +729,17 @@ a.  What does the preemption model assume about the relationship between total a
 b.  Why does the niche preemption model look like a straight line in the RAD plot?
 
 > ***Answer 10a***: 
+
 > The preemption model from above assumes that total abundance is  linked to the resources available within the ecosystem, with species acquiring resources in a hierarchical or sequential manner as they are the species that have arrived first thus "preempting" the resources as the rest of species in lowers ranks have less abundance because there are less resources due to these early species. 
 > ***Answer 10b***:
 >It looks like a straight line because it assumes that each subsequential species acquires a fixed proportion of the remaining resources that the first arrivers did not acquire, leading to a linear decline in species abundances. 
 
 
-***Question 10***: Why is it important to account for the number of parameters a model uses when judging how well it explains a given set of data?
+***Question 11***: Why is it important to account for the number of parameters a model uses when judging how well it explains a given set of data?
 
 > ***Answer 11***:
 >  The more parameters a model uses, the better it will fit a given data set so that we can better determine the best fitting model when we perform a radfit() like we did here. 
+
 
 ## SYNTHESIS
 
@@ -627,6 +756,8 @@ D.sub
 
 ```
 
+
+ 
 2.  Along with the rank-abundance curve (RAC), another way to visualize the distribution of abundance among species is with a histogram (a.k.a., frequency distribution) that shows the frequency of different abundance classes.
 For example, in a given sample, there may be 10 species represented by a single individual, 8 species with two individuals, 4 species with three individuals, and so on.
 In fact, the rank-abundance curve and the frequency distribution are the two most common ways to visualize the species-abundance distribution (SAD) and to test species abundance models and biodiversity theories.
@@ -639,6 +770,7 @@ hist(ranks)
 >Answer to Synthesis #2
 >When I perform the histogram, the general pattern that I am seeing is one in which the majority of the species have a relatively high and equal frequency of abundance at site 1. This would lead to faulty and misleading interpretation of the diversity and evenness of the species that we see within site 1. 
 
+
 3.  We asked you to find a biodiversity dataset with your partner.
 This data could be one of your own or it could be something that you obtained from the literature. 
 Load that dataset.
@@ -647,9 +779,19 @@ How many species are there in the entire site-by-species matrix?
 Any other interesting observations based on what you learned this week?
 
 ```{r}
+Synthdata <- read.csv("MAT_fungal_abundances.csv")
+Synthdata_reform <- Synthdata[,c(1,5)]
+Synthdata_reform
+unique_plots <- data.frame(Plot = unique(data$Plot))
+unique_plots
+unique_species <- data.frame(Species = unique(Synthdata_reform$Species))
+unique_species
 
 
 ```
+>it seems as there are a total 16 plots or sites in this specific dataset. There are 44 unique species. Since I am low on time due to issues with the .Rmd file, I am out of time to  look at further interesting observations based on what we've learned this week. 
+
+
 ## SUBMITTING YOUR ASSIGNMENT
 Use Knitr to create a PDF of your completed 5.AlphaDiversity_Worksheet.Rmd document, push it to GitHub, and create a pull request.
 Please make sure your updated repo include both the pdf and RMarkdown files.
