@@ -321,7 +321,7 @@ The remaining columns of data refer to the biomass (µg/L) of different zooplank
 ***Question 6***: With the visualization and statistical tools that we learned about in the **3. RStudio** handout, use the site-by-species matrix to assess whether and how different zooplankton taxa were responsible for the total biomass (ZP) response to nutrient enrichment. 
 Describe what you learned below in the "Answer" section and include appropriate code in the R chunk.
 
-```{r}
+```{r Question #6}
 synth <- read.table("data/zoops.txt", sep = "\t", header = TRUE)
 synth.num <- cbind(synth[,3:11], meso[,8])
 colnames(synth.num)[10] <- "ZP"

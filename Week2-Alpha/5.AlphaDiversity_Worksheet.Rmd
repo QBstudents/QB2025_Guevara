@@ -8,6 +8,8 @@ geometry: margin = 2.54cm
 
 ## OVERVIEW
 
+**quick ebueren edit to make a change**
+
 In this exercise, we will explore aspects of local or site-specific diversity, also known as alpha ($\alpha$) diversity. 
 First we will quantify two of the fundamental components of ($\alpha$) diversity: **richness** and **evenness**.
 From there, we will then discuss ways to integrate richness and evenness, which will include univariate metrics of diversity along with an investigation of the **species abundance distribution (SAD)**.
