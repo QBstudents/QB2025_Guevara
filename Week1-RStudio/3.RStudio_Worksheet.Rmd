@@ -321,7 +321,7 @@ The remaining columns of data refer to the biomass (µg/L) of different zooplank
 ***Question 6***: With the visualization and statistical tools that we learned about in the **3. RStudio** handout, use the site-by-species matrix to assess whether and how different zooplankton taxa were responsible for the total biomass (ZP) response to nutrient enrichment. 
 Describe what you learned below in the "Answer" section and include appropriate code in the R chunk.
 
-```{r}
+```{r Question #6}
 synth <- read.table("data/zoops.txt", sep = "\t", header = TRUE)
 synth.num <- cbind(synth[,3:11], meso[,8])
 colnames(synth.num)[10] <- "ZP"
@@ -344,7 +344,7 @@ newconf95 <- predict(linereg, newdata = data.frame(SIMO = newSIMO),
                      interval = c("confidence"), level = 0.95, type = "response")
 matlines(newSIMO, newconf95[, c("lwr", "upr")], type = "l", lty = 2, lwd = 1, col = "black")
 ```
-> Answer 6: From doing a corrplot using the ellipse method, I saw that the SIMO and CHYD species were highly responsible for the increases in zooplankton biomass that we see when nutrient enrichment takes place. Above, I focused on visualizing the linear regression for SIMO. Further, the corr.test revealed that SIMO and CHYD were the only positive values in the matrix, further indicating that these were the only two species that contributed most strongly to the increase in zooplankton biomass in response to the nutrient enrichment. Overall, this assignment taught so much that I didn't know about R. Much of the time, I only learned and memorized the code that I needed for my own personal data, but looking at it from this POV has improved my understanding of when and when not to use certain functions or arguments. 
+> Answer 6: From doing a corrplot using the ellipse method, I saw that the SIMO and CHYD taxa were highly responsible for the increases in zooplankton biomass that we see when nutrient enrichment takes place. Above, I focused on visualizing the linear regression for SIMO. Further, the corr.test revealed that SIMO and CHYD were the only positive values in the matrix, further indicating that these were the only two taxa that contributed most strongly to the increase in zooplankton biomass in response to the nutrient enrichment. Overall, this assignment taught so much that I didn't know about R. Much of the time, I only learned and memorized the code that I needed for my own personal data, but looking at it from this POV has improved my understanding of when and when not to use certain functions or arguments. 
 
 ## SUBMITTING YOUR WORKSHEET
 Use Knitr to create a PDF of your completed **3.RStudio_Worksheet.Rmd** document, push the repo to GitHub, and create a pull request.
