@@ -446,21 +446,19 @@ ExpandProjdata <- slim %>%
 Sorted_ExpandProjdata <- ExpandProjdata %>%
   arrange(Treatment)
 ExpandProjdata.db <- vegdist(Sorted_ExpandProjdata[, -c(1,2)], method = "bray", upper = TRUE, diag = TRUE)
-#Define Order of Sites
-order.projdata <- rev(attr(ExpandProjdata.db, "Labels"))
 
-
+#Creating a new variable and turning our database and classifying it as a matrix
 heatmap_matrix <- as.matrix(ExpandProjdata.db)
-
-# Ensure rows and columns match the order
-if (!is.null(order.projdata)) {
-  heatmap_matrix <- heatmap_matrix[order.projdata, order.projdata]
-}
-
-# Now plot
+# Assign row and column names using the "Plot" column from Sorted_ExpandProjdata to our database we just assigned as a matrix
+rownames(heatmap_matrix) <- Sorted_ExpandProjdata$Plot
+colnames(heatmap_matrix) <- Sorted_ExpandProjdata$Plot
+# Now to actually plot the heatmap using the matrix that we have just created
 levelplot(heatmap_matrix, aspect = "iso", col.regions = inferno, 
-          xlab = "Toolik Lake", ylab = "Toolik Lake", scales = list(cex = 0.5), 
+          xlab = "Toolik Lake, AK", ylab = "Toolik Lake, AK", 
+          scales = list(x = list(rot = 90, cex = 0.7), y = list(cex = 0.7)), 
           main = "Bray-Curtis Distance")
+
 #After having reorganized my data so that sites are sorted by treatment group, it is difficult to detect but it appears there may be a slight pattern where different locations that are undergo the same treatment (either cntrl, fertilized, warmed, or warmed & fertilized) exhibit greater similarities in beta diversity than when compared to the same sight but of another treatment group. 
+
 
 ```
