@@ -1,6 +1,6 @@
 ---
 title: '6\. Worksheet: Among Site (Beta) Diversity -- Part 2'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Bryan Guevara; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -42,10 +42,12 @@ In the R code chunk below, provide the code to:
 4. load the `vegan` R package (be sure to install if needed).  
 
 ```{r}
-
-
-
-
+#Code to clear R environment
+rm(list = ls())
+getwd()
+setwd("/cloud/project/QB2025_Guevara/Week4-Beta")
+getwd()
+library(vegan)
 ```
 
 ## 2) LOADING DATA
@@ -54,9 +56,7 @@ In the R code chunk below, load the `doubs` dataset from the `ade4` package
 
 ```{r}
 # note, pleae do not print the dataset when submitting
-
-
-
+data(doubs)
 ```
 ## 3) HYPOTHESIS TESTING
 
@@ -69,22 +69,35 @@ In the code chunk below, test the hypothesis that fish community composition var
 2. use the multivariate analyses for categorical predictors to describe how fish community structure relates to habitat quality.
 
 ```{r}
+#Create "Factors" vector
+quality <- c(rep("HQ", 13), rep("MQ", 5), rep("LQ", 6), rep("MQ", 5))
 
+#Calling fish dataframe from doubs as fish
+library(ade4)
+data(doubs)
+fish <- doubs$fish
 
+fish <- fish[-8, ] #Removes site 8 from data
 
+#Run PERMANOVA with adonis function
+adonis2(fish ~ quality, method = "bray", permutations = 999)
 
+#load indicspecies because multipatt is function from this package
+library(indicspecies)
+indval <- multipatt(fish, cluster = quality, func = "IndVal.g",
+                    control = how(nperm = 999))
+summary(indval)
 
-
-
-
-
+fish.rel <- decostand(fish, method = "total")
+phi <- multipatt(fish.rel, cluster = quality, func = "r.g", control = how(nperm = 999))
+summary(phi)
 ```
 
 ***Question 1***: Based on the PERMANOVA, IndVal, and phi coefficient analyses, what did you learn about the relationship between habitat quality and the fish species composition?
 Are the different analyses consistent with one another and do they agree with the visualizations (heat maps, cluster dendograms, ordinations) that you created?
 
 > ***Answer 1***: 
-
+> It seems that Satr and Phph are fish species that are found in waters of higher quality. Generally the high or low quality have hte lowest number of species at their locations. The different analayses are super consistent with each other, however, they are similar enough that we see some of the same species in the same water quality using any of the analyses. This is likely do to the Indval method measuirng species specificity and fidelity without standardizing while phi measures species correlation and does standardize. 
 
 ### B.  Multivariate Procedures for Continuous Designs
 
@@ -95,18 +108,19 @@ In the R code chunk below, do the following:
 2. use a Mantel test to test the hypothesis that fish assemblages are correlated with stream environmental variables.
 
 ```{r}
+#Define matrices
+fish.dist <- vegdist(doubs$fish[-8,], method = "bray")
+env.dist <- vegdist(scale(doubs$env[-8,]), method = "euclid")
 
-
-
-
-
+#Mantel test
+mantel(fish.dist,env.dist)
 ```
 
 ***Question 2***: What do the results from our Mantel test suggest about fish diversity and stream environmental conditions? 
 How does this relate to your hypothesis about stream quality influencing fish communities?
 
 > ***Answer 2***:  
-
+> There is a pretty strong and statistically significant correlation between stream env. conditions and fish community composition as r = 0.604 basically meaning that fish diversity increases along with better/improved env. conditions. I would say that this fits, although, my previous hypothesis was discusing which fish would be potential indicators of river quality. This finding does indeed seem to make sense, the greater the water cnoditions, the less stress the fish have to contend with in order to establish a population there to boost the local species richness. 
 ### ii.  Constrained Ordination
 In the R code chunk below, do the following:  
 
@@ -118,23 +132,77 @@ In the R code chunk below, do the following:
 6. plot the constrained ordination results including labeled points for each site, and
 7. add vectors that demonstrate the influence of each environmental factor the constrained ordination.   
 ```{r}
+#Define environmental matrix
+env.chem <- as.matrix(doubs$en[-8,5:11])
+
+#Perform dbRDA
+fish.db <- vegdist(fish, method = "bray")
+doubs.dbrda <- dbrda(fish.db ~ ., as.data.frame(env.chem))
+ordiplot(doubs.dbrda)
+
+psych::corr.test(env.chem)
+
+#First we will model only the intercept
+doubs.dbrda.mod0 <- dbrda(fish.db ~ 1, as.data.frame(env.chem))
+
+#Note there are no vectors here(we didn't constrain anythign) 
+#Therefore, the axes suggest this is a simple MDS (i.e., PCoA) 
+ordiplot(doubs.dbrda.mod0)
+
+#next, we will model the full model with all explanatory variables
+doubs.dbrda.mod1 <- dbrda(fish.db ~ ., as.data.frame(env.chem))
+
+#Now we step through all combinatiosn of explanatory variables  in our model
+#The function retursn the model with the lowewst AIC value
+doubs.dbrda <- ordiR2step(doubs.dbrda.mod0, doubs.dbrda.mod1, perm.max = 200)
+
+#Let's look at the model that was selected 
+doubs.dbrda$call
+doubs.dbrda$anova
+ordiplot(doubs.dbrda)
+
+#Permutation tests to evaluate significance 
+permutest(doubs.dbrda, permutations = 999)
+envfit(doubs.dbrda, env.chem[,c(4,6,7)], perm = 999)
+
+#Calculate Explained Variation
+dbrda.explainvar1 <- round(doubs.dbrda$CCA$eig[1] / 
+                             sum(c(doubs.dbrda$CCA$eig, doubs.dbrda$CA$eig)), 3) * 100
+dbrda.explainvar2 <- round(doubs.dbrda$CCA$eig[2] / 
+                             sum(c(doubs.dbrda$CCA$eig, doubs.dbrda$CA$eig)), 3) * 100
 
 
+#Define Plot parameters
+par(mar = c(5,5,4,4) + 0.1)
 
+#Initiate Plot
+plot(scores(doubs.dbrda, display = "wa"), xlim = c(-1.3, 1.1),
+     ylim = c(-1.1, 2.7), xlab = paste("dbRDA 1(", dbrda.explainvar1, "%)", 
+                                       sep = ""), ylab = paste("dbRDA 2 (", dbrda.explainvar2, "%)", sep = ""), pch = 16, cex = 2.0, type = "n", cex.lab = 1.5, 
+     cex.axis = 1.2, axes = FALSE)
 
+#Add Axes
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1) 
+axis(side = 2, label = T, lwd.ticks = 2, cex.axis = 1.2, las = 1) 
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2) 
 
+#Add poitns & labels
+points(scores(doubs.dbrda, display = "wa"),
+       pch = 19, cex = 3, bg = "gray", col = "gray") 
+text(scores(doubs.dbrda, display = "wa"),
+     labels = row.names(scores(doubs.dbrda, display = "wa")))
 
-
-
-
-
-
-
-
-
-
-
-
+#Add environmental vectors
+vectors <- scores(doubs.dbrda, display = "bp")
+#row.names(vectors) <- rownames(vectors) 
+arrows(0,0, vectors [,1], vectors[, 2],
+      lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[,1], vectors[, 2], pos = 3, 
+     labels = row.names(vectors))
+axis(side = 3, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, 
+     at = pretty(range(vectors[, 1])) * 2, labels = pretty(range(vectors[, 1])))
+axis(side = 4, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2, at = pretty(range(vectors[,2])) * 2, labels = pretty(range(vectors[,2])))
 
 
 ```
@@ -142,6 +210,7 @@ In the R code chunk below, do the following:
 ***Question 3***: Based on the constrained ordination, what are the environmental variables (or groups of correlated variables) that seem to be contributing to variation in fish community structure?
 
 > ***Answer 3***: 
+> It seems that nitrogen, oxygen and 'bdo' are contributing the most to variation within fish community structure. 
 
 ### iii. Variation Partitioning
 In the code chunk below,   
@@ -153,18 +222,65 @@ In the code chunk below,
 5. Partition the variation among sites into the relative importance of space, environment, spatially structured environment, and residuals,
 6. Plot the variation partitioning output to visualize it.  
 ```{r}
+#Remember, our environmental model uses oxy, bdo, and nit and has R2 = 0.53. 
+doubs.dbrda$anova
 
+#Let's create a matrix model for our environmental data
+env.mod <- model.matrix(~ oxy + bdo + nit, as.data.frame(env.chem))[,-1]
 
+#First, we will weighh each site by its relative abundance
+rs <- rowSums(fish)/sum(fish)
 
+#Next, we will perofmr PCNM
+doubs.pcnmw <- pcnm(dist(doubs$xy[-8,]), w = rs, dist.ret = T)
 
+#PCNM can return negative eigenvalues, but only the eigenvectors associated with the positive eigenvalues are meaningful 
+doubs.pcnmw$values > 0 
 
+doubs.space <- as.data.frame(scores(doubs.pcnmw))
+doubs.pcnm.mod0 <- dbrda(fish.db ~ 1, doubs.space)
+doubs.pcnm.mod1 <- dbrda(fish.db ~ ., doubs.space)
+step.pcnm <- ordiR2step(doubs.pcnm.mod0, doubs.pcnm.mod1, perm.max = 200) 
 
+#Because this is another dbRDA, we could visualize the biplot showing how each vector explains variation across sites
+plot(step.pcnm)
+
+#The object 'step.pcnm' now contains the selected model.
+step.pcnm$anova
+
+#We can now construct a spatial model using only the selected PCNM axes
+space.mod <- model.matrix(~ PCNM2 + PCNM3 + PCNM5 + PCNM1 + PCNM13 + PCNM16 + PCNM6, doubs.space)[,-1]
+
+#First conduct constrained ordinations
+doubs.total.env <- dbrda(fish.db ~ env.mod)
+doubs.total.space <- dbrda(fish.db ~ space.mod)
+
+#Next construct partial constrained ordiations
+doubs.env.cond.space <- dbrda(fish.db ~ env.mod + Condition(space.mod))
+doubs.space.cond.env <- dbrda(fish.db ~ space.mod + Condition(env.mod))
+
+#Next test for significance of the dbRDA fractions
+permutest(doubs.env.cond.space, permutations = 999)
+permutest(doubs.space.cond.env, permutations = 999)
+permutest(doubs.total.env, permutations = 999)
+permutest(doubs.total.space, permutations = 999)
+
+#Using the built-in varpart() function
+doubs.varpart <- varpart(fish.db, env.mod, space.mod)
+doubs.varpart
+
+par(mar = c(2,2,2,2))
+plot(doubs.varpart)
+text(1, 0.25, "Space")
+text(0, 0.25, "Env")
+mtext("Variation Partitioning of\nDoubs Fish Diversity", side = 3, line = -3)
 
 ```
 
 ***Question 4***: Interpret the variation partitioning results.   
 
 > ***Answer 4***: 
+> Here we see the percentage in which environment and space play in shaping fish diversity at Doubs. Space explains 24% of the diversity on its own, while Environment explains 13% .Combined they explain 37% of the variation as environmental conditions depend on space. Basically meaning that areas with similar conditions (thus similar space) are more likely to have similar diversity. Based on the residuals, we can see that 27% of variance seems unexplained in this particular case. 
 
 ## SYNTHESIS
 
@@ -172,3 +288,29 @@ Load the dataset from that you and your partner are using for the team project.
 Use one of the hypothesis-testing tools introduced in the beta diversity module. 
 Interpret the findings of your data with respect to principles of biodiversity. 
 
+```{r}
+Projdata <- read.csv("/cloud/project/QB2025_Guevara/Week2-Alpha/MAT_fungal_abundances.csv")
+str(Projdata)
+library(dplyr)
+slim <- Projdata %>%
+  select(Plot, Treatment, Species, Relative.Abundance)
+#Changing data so that each species is a column, values are the relative.abundance, and rows are each plot/site
+library(tidyr)
+ExpandProjdata <- slim %>%
+  pivot_wider(names_from = Species, values_from = Relative.Abundance, values_fill = 0)
+Sorted_ExpandProjdata <- ExpandProjdata %>%
+  arrange(Treatment)
+
+#Creating separate vector for plots/treatments and creating new data table that is only numerical
+Fungal.treatment <- Sorted_ExpandProjdata[,1]
+Rel.abun.fungal <- Sorted_ExpandProjdata [,3:46]
+#Fungal.treatment is apparently invalid
+str(Sorted_ExpandProjdata$Fungal.treatment)
+#Setting Fungal.treatment as a factor
+Fungal.treatment_factor <- as.factor(unlist(Fungal.treatment))
+adonis2(Rel.abun.fungal ~ Fungal.treatment_factor, method = "bray", permutations = 999)
+#I end up with a strange result with no p-value and zero residuals which seems rather odd. 
+length(unique(Fungal.treatment_factor))
+```
+
+> I'm not sure I can interpret these findings as they don't seem to be coming out right for some reason. I've set my treatments/rows as a factor, I removed any non-numeric data from the matrix in order to perform the adonis2 function, but it still is coming out like this. Perhaps it is because the values are relative abundances and thus between 0 and 1 which is affecting the overall PERMANOVA? I'm unsure, I will discuss with Jay and Emma on Friday. 
