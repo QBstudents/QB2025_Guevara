@@ -1,6 +1,6 @@
 ---
 title: '7\. Worksheet: Diversity Synthesis'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Bryan Guevara; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -65,6 +65,19 @@ In the R code chunk below, please provide the code to:
 4) Load the `vegan` R package (be sure to install first if you have not already).
 
 ```{r}
+rm(list = ls())
+getwd()
+setwd("/cloud/project/QB2025_Guevara/Week5-Confection")
+
+package.list <- c('vegan', 'tidyverse', 'ggplot2', 'dplyr', 'broom')
+for (package in package.list){
+  if(!require(package, character.only = TRUE, quietly = TRUE)) {
+    install.packages(package)
+  }
+  library(c(package), character.only = TRUE)
+}
+
+data <- read.csv(file = "/cloud/project/QB2025_Guevara/Week5-Confection/data/jelly.source.comm.csv", header = TRUE, row.names = 1)
 
 
 ```
@@ -75,12 +88,22 @@ In the R code chunk below, please provide the code to:
 Based on these results, discuss how individual vs. collective sampling efforts capture the diversity of the source community.
 
 ```{r}
+SbyS <- as.matrix(read.csv(file = "./data/JB_SbyS.csv", header = TRUE, row.names = 1))
 
+S.obs <- function(x = "") { 
+  rowSums(x > 0 ) * 1
+  }
 
+obs.SbyS <- S.obs(SbyS)
+min.N <- min(rowSums(SbyS))
+S.rarefy <- rarefy(x = SbyS, sample = min.N , se = TRUE)
+rarecurve(x = SbyS, step = 20, col = "blue", cex = 0.6, las = 1) 
+abline(0, 1, col = 'red')
+text(1500, 1500, "1:1", pos = 2, col = 'red')
 ```
 
 > ***Answer 1***:
->
+> Having looked at the rarefaction plot, we can see the variation in how many species each of us actually end up with. We can see that this variation differs pretty strongly from the community number of species which is likely to be a more accurate representation of the species, or bean, diversity here. 
 
 
 **Question 2:** Starting with the site-by-species matrix, visualize beta diversity.
@@ -90,23 +113,145 @@ Which "species" are contributing the patterns in the ordinations?
 How does the choice of resemblance matrix affect your interpretation?
 
 ```{r}
+library(viridis)
+### Constructing resemblance matrix based on species abundance
+SbyS.db <- vegdist(t(SbyS), method = "bray")
+
+### Constructing resemblance matrix based on preference/incidence. First I remove non-numeric columns and then remove cotton.candy column because it has missing value (i.e., "NA")
+
+pref <- as.matrix(read_csv("/cloud/project/QB2025_Guevara/Week5-Confection/data/JB_preference.csv"))
+pref <- pref[,c(-1,-15)]
+pref <- na.omit(pref)  # Remove rows with NAs
+pref <- as.data.frame(lapply(pref, function(x) as.numeric(as.character(x))))
+pref <- pref[, colSums(pref) > 0]  # Remove all-zero columns
+
+pref.dj <- vegdist(t(pref), method = "jaccard", binary = TRUE)
+
+### Building pcoa for sbys or abundances
+order <- rev(attr(SbyS.db, "Labels"))
+
+##plotting heatmap
+levelplot(as.matrix(SbyS.db)[order,], aspect = "iso", col.regions = inferno, 
+          xlab = "Flavor taster", ylab = "Flavor taster", 
+          scales = list(x = list(rot = 90, cex = 0.5), y = list(cex = 0.5)), 
+          main = "Bray-Curtis Distance")
+
+bean.pcoa.db <- cmdscale(SbyS.db, eig = TRUE, k = 3)
+explainvar1 <- round(bean.pcoa.db$eig[1]/sum(bean.pcoa.db$eig), 3) * 100
+explainvar2 <- round(bean.pcoa.db$eig[2]/sum(bean.pcoa.db$eig), 3) * 100
+explainvar3 <- round(bean.pcoa.db$eig[3]/sum(bean.pcoa.db$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+par(mar = c(6,6, 3, 3) + 0.1)
+
+# Generate distinct colors for each individual
+num_individuals <- ncol(bean.pcoa.db$points)
+colors <- viridis(num_individuals)  # Generate unique colors
+
+# Plot
+plot(bean.pcoa.db$points[,1], bean.pcoa.db$points[,2], ylim = c(-0.2, 0.7), 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5,
+     cex.axis = 1.2, axes = FALSE)
+
+# Add Axes
+axis(side = 1, labels = TRUE, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = TRUE, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points with Unique Colors and then labels
+points(bean.pcoa.db$points[,1], bean.pcoa.db$points[,2],
+       pch = 19, cex = 3, col = colors)
+text(bean.pcoa.db$points[,1], bean.pcoa.db$points[,2],
+     labels = row.names(bean.pcoa.db$points), col = colors, cex = 1.2)
+
+#First we calculate the relative abundances of each species at each site
+beanREL <- SbyS 
+for(i in 1:nrow(SbyS)){
+  beanREL[i, ] =SbyS[i, ] / sum(SbyS[i, ])
+}
 
 
+###Building plot for INCIDENCE
+
+dim(pref.dj)
+
+bean.pcoa.dj <- cmdscale(pref.dj, eig = TRUE, k = 3)
+explainvar1 <- round(bean.pcoa.dj$eig[1]/sum(bean.pcoa.dj$eig), 3) * 100
+explainvar2 <- round(bean.pcoa.dj$eig[2]/sum(bean.pcoa.dj$eig), 3) * 100
+explainvar3 <- round(bean.pcoa.dj$eig[3]/sum(bean.pcoa.dj$eig), 3) * 100
+sum.eig <- sum(explainvar1, explainvar2, explainvar3)
+par(mar = c(5,5, 1, 2) + 0.1)
+
+# Generate distinct colors for each individual
+num_individuals <- nrow(bean.pcoa.dj$points)
+colors <- viridis(num_individuals)  # Generate unique colors
+
+str(bean.pcoa.dj)  # Check the structure
+dim(bean.pcoa.dj$points)  # Check dimensions
+str(pref.dj)  # Check if it's a dist object
+sum(is.na(pref.dj))  # Check if it contains NA values
+k_value <- min(nrow(as.matrix(pref.dj)) - 1, 3)  # Ensure k is valid
+bean.pcoa.dj <- cmdscale(pref.dj, eig = TRUE, k = k_value)
+
+# Plot
+plot(bean.pcoa.dj$points[,1], bean.pcoa.dj$points[,2], 
+     xlab = paste("PCoA 1 (", explainvar1, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "p", cex.lab = 1.5,
+     cex.axis = 1.2, axes = TRUE)
+
+# Add Axes
+axis(side = 1, labels = TRUE, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = TRUE, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+# Add Points with Unique Colors
+points(bean.pcoa.dj$points[,1], bean.pcoa.dj$points[,2],
+       pch = 19, cex = 3, col = colors)
+text(bean.pcoa.dj$points[,1], bean.pcoa.dj$points[,2],
+     labels = row.names(bean.pcoa.dj$points), col = colors, cex = 1.2)
+
+#First we calculate the relative abundances of each species at each site
+beanREL <- pref 
+for(i in 1:nrow(pref)){
+  beanREL[i, ] =pref[i, ] / sum(pref[i, ])
+}
 ```
 
 > ***Answer 2***:
->
+> I cannot seem to plot the incidence PCoA as the subscript seems to be out of bounds and I cannot seem to change the par to fix the issue. From the Bray-Curtis distance PCoA, we can't really see what is going on and which 'species' or jelly bean flavor is causing the greatest amount of variance in abundance. I can probably assume that the difference in which matrix we use would probably change our interpretation in terms of which species is causing the greatest amount of variation and from which person had the greatest variation in the abundances for each jelly bean species. 
 
 
 **Question 3** Using the preference-profile matrix, determine the most popular jelly bean in the class using a control structure (e.g., for loop, if statement, function, etc).
 
 ```{r}
+pref <- read_csv("/cloud/project/QB2025_Guevara/Week5-Confection/data/JB_preference.csv")
+pref <- pref %>% rename(island.punch = `Island Punch`)
 
+column_sums <- numeric(ncol(pref) - 1)  # Excluding the first column
+column_names <- colnames(pref)[-1]  # Exclude the first column
 
+# Loop through each numeric column (excluding the first one)
+for (i in 2:ncol(pref)) {
+  column_sums[i - 1] <- sum(pref[[i]])  # Store sum in vector
+}
+
+# Assign column names to the sums
+names(column_sums) <- column_names
+
+# Actually calculating column sums
+pref.sums <- colSums(pref[, -1])
+
+# Print results from the loop
+print("Column sums calculated using a for loop:")
+print(column_sums)
 ```
 
 > ***Answer 3***:
->
+> We can see that the most popular jelly bean in the class is the berryblue flavor. 
 
 
 **Question 4**
@@ -118,12 +263,56 @@ Make some observations about the preference-profiles of the class.
 
 
 ```{r}
+pref <- as.matrix(read.csv(file = "./data/JB_preference.csv", header = TRUE, row.names = 1))
+
+#Getting rid of missing values and replacing with zero
+pref[is.na(pref)] <- 0
+
+Bryan.distance <- pref["Bryan",]
+
+similarities <- vegdist(rbind(Bryan.distance, pref), method = "jaccard")
+
+# Extract the student with the lowest Jaccard distance (most similar) --> telling me who has the most similar preference profile based on row.
+most_similar_student <- rownames(pref)[which.min(similarities[-1])]
+print(most_similar_student)
+
+# Compute Jaccard distance matrix
+jaccard_distances <- vegdist(rbind(pref["Bryan", ], pref), method = "jaccard")
+
+# Convert distance to similarity
+jaccard_scores <- 1 - as.numeric(jaccard_distances)
+
+# Remove self-comparison (Bryan.distance to Bryan.distance)
+jaccard_scores <- jaccard_scores[-1]
+
+# Find the most similar student
+most_similar_index <- which.max(jaccard_scores)
+most_similar_student <- rownames(pref)[most_similar_index]
+
+# Get the Jaccard similarity score
+jaccard_score <- jaccard_scores[most_similar_index]
+
+# Print results
+print(paste("Most similar student:", most_similar_student))
+print(paste("Jaccard similarity score:", round(jaccard_score, 4)))
+
+# Ensure pref is a numeric matrix (convert if necessary)
+pref_matrix <- as.matrix(pref)
+
+# Compute a distance matrix (default: Euclidean distance)
+distance_matrix <- dist(pref_matrix, method = "euclidean")
+
+# Perform hierarchical clustering
+cluster <- hclust(distance_matrix, method = "ward.D2")
+
+# Plot the dendrogram
+plot(cluster)
 
 
 ```
 
 > ***Answer 4***:
->
+> It seems that Jocelyn has the most similar preference profile to mine. I seem to be something incorrectly seeing as the jaccard score that results from my code is stating that Jocelyn and I have a similarity score of 1 which does not seem possible. Based on this clustering method, it would seem that Elaine and I have the strongest similarity preference profile as opposed to what the jaccard was telling me that it was Jocelyn. In this case, Jocelyn even appears to be an outgroup as the next person who has the most similar preference profile to me being ElPark. 
 
 
 
