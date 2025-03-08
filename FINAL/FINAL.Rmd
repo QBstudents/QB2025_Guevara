@@ -1,0 +1,396 @@
+---
+title: "QB Final"
+author: "Bryan Guevara"
+date: "2025-03-07"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r working dir}
+rm(list = ls())
+getwd()
+
+```
+# For the question of 'How does fungal species diversity vary across warming and fertilization treatments?'
+```{r Bryans Code}
+##Reading in all data files
+Fung.abund <- read.csv("/cloud/project/QB2025_Guevara/FINAL/data/MAT_fungal_abundances.csv")
+Fung.enzymes <- read.csv("/cloud/project/QB2025_Guevara/FINAL/data/MAT_enzymes.csv")
+Fung.ectocounts <- read.csv("/cloud/project/QB2025_Guevara/FINAL/data/MAT_ectocounts.csv")
+Fung.seq.enzymes <- read.csv("/cloud/project/QB2025_Guevara/FINAL/data/MAT_sequences_enzymes.csv")
+soils <- read.csv("/cloud/project/QB2025_Guevara/FINAL/data/MAT_soils.csv")
+library(ggplot2)
+library(vegan)
+#To slim down the data to only columns we will need to incidence matrix
+library(dplyr)
+slim <- Fung.abund %>%
+  select(Plot, Treatment, Species, Relative.Abundance)
+#Changing data so that each species is a column, values are the relative.abundance, and rows are each plot/site
+library(tidyr)
+Fung.abund <- slim %>%
+  pivot_wider(names_from = Species, values_from = Relative.Abundance, values_fill = 0)
+# Convert nonzero values to 1 while keeping 0s as is
+Fung.abund <- Fung.abund %>%
+  mutate(across(-c(Plot, Treatment), ~ ifelse(. > 0, 1, 0)))
+#Creating complete incidence matrix 
+Fung.abund.incidence <- Fung.abund %>%
+  arrange(Treatment)
+##Counting fungal presence
+fungal_presence_counts <- Fung.abund.incidence %>%
+  mutate(Presence_Count = rowSums(across(-c(Plot, Treatment))))
+
+
+##ANOVA for difference in # of species
+plot.incid.diff <- aov(formula = Presence_Count ~ Treatment, data = fungal_presence_counts)
+summary(plot.incid.diff)
+
+# Create a bar plot showing the number of species present per plot
+ggplot(fungal_presence_counts, aes(x = reorder(Plot, -Presence_Count), y = Presence_Count, fill = Treatment)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Fungal spp. Presence/Plot",
+       x = "Plot",
+       y = "Number of Species Present") +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),  # Increase title size, bold, and center align
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14),  # Increase x-axis text size
+    axis.text.y = element_text(size = 14),  # Increase y-axis text size
+    axis.title.x = element_text(size = 16, face = "bold"),  # Increase x-axis label size
+    axis.title.y = element_text(size = 16, face = "bold")   # Increase y-axis label size
+  ) +
+  scale_fill_brewer(palette = "Set2")
+
+ggplot(fungal_presence_counts, aes(x = Treatment, y = Presence_Count)) +
+  geom_boxplot(aes(fill = Treatment), color = "black") +
+  labs(title = "Spp. Richness by Treatment",
+       x = "Treatment", 
+       y = "Spp. Richness") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+##Now, we will go ahead and create clustering tree
+install.packages("ggdendro")
+library(ggdendro)
+
+library(tibble)
+
+# Convert tibble to a standard data frame to avoid row name issues
+Fung.abund.incidence <- as.data.frame(Fung.abund.incidence)
+
+# Set row names as Plot names and remove 'Plot' and 'Treatment' columns
+rownames(Fung.abund.incidence) <- Fung.abund.incidence$Plot
+fungal_matrix <- as.matrix(Fung.abund.incidence[, -c(1, 2)])  # Keep only presence/absence data
+
+# Compute Jaccard distance matrix
+jaccard_dist <- vegdist(fungal_matrix, method = "jaccard")
+
+# Perform hierarchical clustering
+jaccard_clust <- hclust(jaccard_dist, method = "average")  # UPGMA clustering
+
+# Convert clustering object to dendrogram format
+dendro <- as.dendrogram(jaccard_clust)
+dendro_data <- ggdendro::dendro_data(dendro)
+
+# Ensure correct plot labels
+dendro_data$labels$label <- rownames(fungal_matrix)[jaccard_clust$order]
+
+ggplot(dendro_data$segments) +
+  geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_text(
+    data = dendro_data$labels,
+    aes(x = x, y = y, label = label),
+    hjust = 1, angle = 90, size = 5, nudge_y = -0.2  # Adjust branch label position
+  ) +
+  theme_minimal(base_size = 16) +  # Increase overall text size
+  labs(
+    title = "Fungal Community Clustering (Jaccard Similarity)",
+    x = "",
+    y = "Distance (Jaccard)"
+  ) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5, margin = margin(b = 20)),  # Add space below title
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    plot.margin = margin(1, 1, 2, 1, "cm"),  # Adjust overall plot margins
+    axis.title.x = element_text(margin = margin(t = 20, b = 20)),  # Add space around x-axis title
+    axis.title.y = element_text(margin = margin(r = 20))  # Add space around y-axis title
+  ) +
+  coord_cartesian(clip = "off")  # Prevent text cutoff
+
+# Count the number of Root.tip.IDs per Treatment
+treatment_counts <- Fung.seq.enzymes %>%
+  group_by(Treatment) %>%
+  summarise(Count = n_distinct(Root.tip.ID))
+##There were 165 root tips in control group, 161 root tips in fertilized group, 161 tips in warmed, and 159 in warmed.fertilized
+# Count the number of Root.tip.IDs per Plot
+plot_counts <- Fung.seq.enzymes %>%
+  group_by(Plot) %>%
+  summarise(Count = n_distinct(Root.tip.ID))
+
+# View the result
+print(plot_counts)
+
+# Getting actual abundances per plot
+Abundances <- Fung.seq.enzymes %>%
+  group_by(Plot, OTU) %>%
+  summarise(Abundance = n_distinct(Root.tip.ID)) %>%
+  arrange(Plot, OTU) %>%
+  filter(!is.na(OTU))  # Remove rows with NA in Abundance
+
+Abundances_transposed <- Abundances %>%
+  pivot_wider(
+    names_from = OTU,           # Make OTUs the column names
+    values_from = Abundance,    # Fill values with Abundance
+    values_fill = list(Abundance = 0)  # Fill missing values with 0
+  )
+
+# Select unique Plot-Treatment pairs from Fung.seq.enzymes
+treatment_data <- Fung.seq.enzymes %>%
+  select(Plot, Treatment) %>%
+  distinct()  # Ensure only one row per Plot
+
+# Merge the transposed Abundances matrix with the treatment data
+merged_data <- Abundances_transposed %>%
+  left_join(treatment_data, by = "Plot") %>%
+  select(Plot, Treatment, everything())  # Ensure correct column order
+
+# View the result
+print(merged_data)
+
+
+
+long_data <- merged_data %>%
+  pivot_longer(cols = -c(Plot, Treatment), names_to = "Species", values_to = "Count")
+
+# Summarize total individuals per treatment
+summary_data <- long_data %>%
+  group_by(Treatment, Plot) %>%
+  summarise(Total_Individuals = sum(Count, na.rm = TRUE), .groups = 'drop')
+
+# Perform ANOVA
+anova_result <- aov(Total_Individuals ~ Treatment, data = summary_data)
+
+# Print summary of ANOVA
+summary(anova_result)
+
+# Perform Tukey's HSD test for pairwise comparisons (optional)
+TukeyHSD(anova_result)
+
+# Extract the first two columns (Plot and Treatment)
+first_two_columns <- merged_data[, 1:2]
+
+# Extract the remaining columns (OTUs)
+otu_columns <- merged_data[, -c(1, 2)]
+
+# Convert OTU column names to numeric and sort them
+sorted_otu_columns <- otu_columns[, order(as.numeric(names(otu_columns)))]
+
+# Combine the first two columns with the sorted OTU columns
+merged_data_sorted <- cbind(first_two_columns, sorted_otu_columns)
+
+# View the sorted dataframe
+print(merged_data_sorted)
+
+
+library(dplyr)
+library(vegan)
+
+# Remove non-OTU columns and ungroup to avoid issues
+otu_data <- merged_data_sorted %>%
+  ungroup() %>%  # Remove any grouping that may have been applied
+  select(-Plot, -Treatment) %>%
+  mutate(across(everything(), as.numeric))  # Ensure all columns are numeric
+
+# Compute Shannon Diversity Index for each plot
+merged_data_sorted$Shannon_Index <- diversity(as.matrix(otu_data), index = "shannon")
+
+# View results
+print(merged_data_sorted[, c("Plot", "Treatment", "Shannon_Index")])
+
+# Ensure data is properly ordered by Treatment
+merged_data_sorted <- merged_data_sorted %>%
+  arrange(Treatment, Plot)  # Sorting by Treatment first, then Plot
+
+# Convert Plot to a factor to maintain order in the plot
+merged_data_sorted$Plot <- factor(merged_data_sorted$Plot, levels = merged_data_sorted$Plot)
+
+# Create the histogram (bar plot)
+ggplot(merged_data_sorted, aes(x = Plot, y = Shannon_Index, fill = Treatment)) +
+  geom_bar(stat = "identity", color = "black") +  # Bar plot with black borders
+  theme_minimal() +
+  labs(x = "Plot", y = "Shannon Diversity Index", title = "Shannon Diversity Index by Plot") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +  # Rotate x-axis labels for readability
+  scale_fill_manual(values = c("Control" = "blue", "Fertilized" = "green", 
+                               "Warmed" = "orange", "Warmed.Fertilized" = "red"))  # Custom colors
+
+# Perform ANOVA
+shannon_anova <- aov(Shannon_Index ~ Treatment, data = merged_data_sorted)
+
+# View ANOVA summary
+summary(shannon_anova)
+TukeyHSD(shannon_anova)
+
+# Create the boxplot with the means
+ggplot(merged_data_sorted, aes(x = Treatment, y = Shannon_Index)) +
+  geom_boxplot(aes(fill = Treatment), color = "black") +
+  labs(title = "Boxplot of Shannon Index by Treatment",
+       x = "Treatment", 
+       y = "Shannon Index") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Taxonomic beta-diversity
+###Visualization
+```{r Maddys code starts here}
+package.list <- c('ape', 'seqinr', 'phylobase', 'adephylo', 'geiger', 'picante', 'stats', 'RColorBrewer', 'caper', 'phylolm', 'pmc', 'ggplot2', 'tidyr', 'dplyr', 'phangorn', 'pander', 'phytools', 'vegan', 'cluster', 'dendextend', 'phylogram', 'bios2mds', 'pak', 'formatR', 'viridis', 'gplots') 
+for (package in package.list) {
+  if (!require(package, character.only=TRUE, quietly=TRUE)) {
+    install.packages(package)
+    library(package, character.only=TRUE)
+  }
+}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("msa")
+library(msa)
+```
+
+```{r}
+Fungi_path <- "./data/MAT_fungal_abundances.txt"
+Fungi_data <- read.table(Fungi_path, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
+Fungi_data$Relative.Abundance <- as.numeric(Fungi_data$Relative.Abundance)
+# Slim down the data to only columns needed
+library(dplyr)
+Fungi_data %>% dplyr::select(Plot, Treatment, Species, Relative.Abundance)
+
+# Change data so that each species is a column, values are the relative.abundance, and rows are each plot/site
+ExpandFungi_data <- slim %>%
+  pivot_wider(names_from = Species, values_from = Relative.Abundance, values_fill = list(Relative.Abundance = 0))
+# Sort the expanded data
+Sorted_ExpandFungi_data <- ExpandFungi_data %>%
+  arrange(Treatment)
+# Calculate Bray-Curtis distance
+ExpandFun_data.db <- vegdist(Sorted_ExpandFungi_data[, -c(1,2)], method = "bray", upper = TRUE, diag = TRUE)
+# Create a new variable and classify it as a matrix
+heatmap_matrix <- as.matrix(ExpandFun_data.db)
+# Assign row and column names using the "Plot" column from Sorted_ExpandFungi_data
+rownames(heatmap_matrix) <- Sorted_ExpandFungi_data$Plot
+colnames(heatmap_matrix) <- Sorted_ExpandFungi_data$Plot
+#Ward's Clustering with heat map
+fun.ward <- hclust(ExpandFun_data.db, method = "ward.D2")
+par(mar = c(1, 5, 2, 2) + 0.1)
+plot(fun.ward, main = "Fungal Diversity: Ward's Clustering",
+     ylab = "Squared Bray-Curtis Distance")
+gplots::heatmap.2(heatmap_matrix,
+                  distfun = function(x) vegdist(x, method = "bray"),
+                  hclustfun = function(x) hclust(x, method = "ward.D2"),
+                  col = "viridis", trace = "none", density.info = "none")
+```
+### PERMANOVA
+```{r}
+# Check and handle missing values
+Fungi_data <- na.omit(Fungi_data)
+# Ensure correct data types
+Fungi_data$Treatment <- as.factor(Fungi_data$Treatment)
+Fungi_data$Relative.Abundance <- as.numeric(Fungi_data$Relative.Abundance)
+# Verify no negative values
+if (any(Fungi_data$Relative.Abundance < 0)) {
+  stop("Abundance data contains negative values.")
+}
+# Replace zero values
+Fungi_data$Relative.Abundance[Fungi_data$Relative.Abundance == 0] <- 0.0001
+# Run adonis2
+adonis2_result <- adonis2(Fungi_data$Relative.Abundance ~ Fungi_data$Treatment, method = "bray", permutations = 999)
+print(adonis2_result)
+```
+## Phylogenetic diversity
+### Tree
+```{r}
+funseqs <- readDNAStringSet("./data/Fungal_seq.txt", format = 'fasta')
+funseqs
+funread.aln <- msaMuscle(funseqs)
+funread.aln
+funp.DNAbin <- as.DNAbin(funread.aln)
+funwindow <- funp.DNAbin[, 0:500]
+image.DNAbin(funwindow, cex.lab = 0.50)
+seq.dist.fun <- dist.dna(funp.DNAbin, model = "F84", pairwise.deletion = FALSE)
+fun.tree <- bionj(seq.dist.fun)
+fun.outgroup <- match("Lactococcus garvieae", fun.tree$tip.label)
+fun.rooted <- root(fun.tree, fun.outgroup, resolve.root = TRUE)
+par(mar = c(1, 0, 2, 1))
+plot.phylo(fun.rooted, type = "phylogram", direction = "right",
+           show.tip.label = TRUE, use.edge.length = FALSE, adj = 0.5,
+           cex = 0.6, label.offset = 2, main = "Fungal Phylogeny")
+```
+## Mapping enzymatic activity onto phylogeny
+```{r}
+library(ape)
+library(phylobase)
+library(tidyr)
+library(dplyr)
+library(tibble)
+fun.enz <- read.table("./data/MAT_sequences_enzymes.txt", sep = "\t", header = TRUE)
+fun.enz_avg <- fun.enz %>%
+  group_by(Species, Treatment) %>%
+  summarize(
+    LAP = mean(LAP, na.rm = TRUE),
+    NAG = mean(NAG, na.rm = TRUE),
+    PHOS = mean(PHOS, na.rm = TRUE),
+    ABTS = mean(ABTS, na.rm = TRUE),
+    TMB = mean(TMB, na.rm = TRUE)
+  )
+species_list <- unique(fun.enz$Species)
+treatment_list <- unique(fun.enz$Treatment)
+complete_data <- expand.grid(Species = species_list, Treatment = treatment_list)
+fun.enz_complete <- complete_data %>%
+  left_join(fun.enz_avg, by = c("Species", "Treatment"))
+fun.enz_wide <- fun.enz_complete %>%
+  pivot_wider(names_from = Treatment, values_from = c(LAP, NAG, PHOS, ABTS, TMB))
+fun.enz_wide <- fun.enz_wide %>%
+  mutate(Species = make.unique(as.character(Species))) %>%
+  column_to_rownames(var = "Species")
+fun.rooted <- root(fun.tree, fun.outgroup, resolve.root = TRUE)
+fun.rooted.noout <- drop.tip(fun.rooted, "Lactococcus garvieae")
+fun.rooted.noout$edge.length[fun.rooted.noout$edge.length <= 0] <- 1e-6
+mypalette <- colorRampPalette(c("#edf8fb", "#b3cde3", "#8c96c6", "#88419d"))
+enzymes <- c("LAP", "NAG", "PHOS", "ABTS", "TMB")
+for (enzyme in enzymes) {
+  enzyme_data <- fun.enz_wide %>%
+    dplyr::select(starts_with(enzyme))
+  
+  enzyme_data[is.na(enzyme_data)] <- -1
+  
+  custom_palette <- c("black", mypalette(25))
+ 
+  phylo_combined <- phylo4d(fun.rooted.noout, enzyme_data)
+  
+  par(mar = c(1, 1, 1, 1) + 0.1, las = 2)
+  table.phylo4d(phylo_combined, treetype = "phylo", symbol = "colors", show.node = TRUE, cex.label = 0.5, scale = FALSE, 
+                use.edge.length = FALSE, edge.color = "black", edge.width = 2, box = FALSE, col = custom_palette, 
+                pch = 15, cex.symbol = 1.25, ratio.tree = 0.5, cex.legend = 1.5, center = FALSE)
+  dev.copy(png, filename = paste0(enzyme, "_phylogenetic_tree.png"))
+  dev.off()
+}
+```
+### PERMANOVA
+```{r}
+fun.enz_avg <- fun.enz_avg %>%
+  mutate(Species = make.unique(as.character(Species)))
+enz_data <- fun.enz_avg %>%
+  dplyr::select(-Species) %>%
+  pivot_wider(names_from = Treatment, values_from = c(LAP, NAG, PHOS, ABTS, TMB)) %>%
+  column_to_rownames(var = "Species")
+enz_data <- enz_data %>%
+  mutate(across(everything(), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+treatment_factor <- fun.enz_avg %>%
+  dplyr::select(Species, Treatment) %>%
+  distinct() %>%
+  column_to_rownames(var = "Species")
+permanova_result <- adonis2(enz_data ~ Treatment, data = treatment_factor, permutations = 999)
+print(permanova_result)
+```
+
